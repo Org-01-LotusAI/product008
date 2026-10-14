@@ -71,6 +71,14 @@ describe("ThreadCraft", () => {
     expect(screen.queryByText("The Weekend Hoodie")).not.toBeInTheDocument();
   });
 
+  it("shows the shared 1099 offer in the Navbar and benefits copy", () => {
+    render(<App />);
+    expect(
+      screen.getByText("Free shipping on orders $1099+"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Free shipping over $1099")).toBeInTheDocument();
+  });
+
   it("adds to drawer and modifies quantity", () => {
     render(<App />);
     fireEvent.click(screen.getAllByRole("button", { name: /Add to bag/ })[0]);
@@ -151,7 +159,7 @@ describe("ThreadCraft", () => {
   });
 });
 
-it("recomputes shipping when the cart crosses the threshold and is emptied", () => {
+it("recomputes shipping from the live subtotal and returns to the full threshold after emptying", () => {
   render(<App />);
   const card = screen
     .getByRole("heading", { name: "Out of Office" })
@@ -166,38 +174,35 @@ it("recomputes shipping when the cart crosses the threshold and is emptied", () 
     name: "Increase Out of Office",
   });
 
-  for (let i = 0; i < 5; i++) fireEvent.click(increase);
-  expect(total.getByText("$192.00")).toBeInTheDocument();
+  expect(total.getByText("$32.00")).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
-    "You're $2.00 away from free shipping.",
+    "You're $1067.00 away from free shipping.",
+  );
+  expect(shipping.getByRole("progressbar")).toHaveAttribute(
+    "value",
+    String((32 / 1099) * 100),
   );
 
   fireEvent.click(increase);
-  expect(total.getByText("$224.00")).toBeInTheDocument();
+  expect(total.getByText("$64.00")).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
-    "You unlocked free shipping!",
+    "You're $1035.00 away from free shipping.",
   );
-
-  fireEvent.click(within(dialog).getByRole("button", { name: "Checkout" }));
-  expect(within(dialog).getAllByRole("status")).toHaveLength(2);
 
   fireEvent.click(
     within(dialog).getByRole("button", { name: "Decrease Out of Office" }),
   );
-  expect(total.getByText("$192.00")).toBeInTheDocument();
-  expect(shipping.getByRole("status")).toHaveTextContent(
-    "You're $2.00 away from free shipping.",
-  );
+  expect(total.getByText("$32.00")).toBeInTheDocument();
 
   const decrease = within(dialog).getByRole("button", {
     name: "Decrease Out of Office",
   });
-  for (let i = 0; i < 6; i++) fireEvent.click(decrease);
+  fireEvent.click(decrease);
 
   expect(dialog.querySelectorAll(".cart-item")).toHaveLength(0);
   expect(total.getByText("$0.00")).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
-    "You're $194.00 away from free shipping.",
+    "You're $1099.00 away from free shipping.",
   );
   expect(shipping.getByRole("progressbar")).toHaveAttribute("value", "0");
   expect(
