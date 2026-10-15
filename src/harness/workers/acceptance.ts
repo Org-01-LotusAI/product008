@@ -1,4 +1,5 @@
 import { format } from "prettier";
+import { normalizeAcceptanceMatchers } from "../acceptance-matchers";
 import {
   acceptancePreflight,
   type AcceptancePreflight,
@@ -20,7 +21,7 @@ interface AcceptanceReview {
   }[];
 }
 const queryGuidance =
-  "Check query uniqueness against the DOM at EACH asserted state, including after quantity updates and checkout. One render can still contain duplicate text or roles. For repeated prices, scope with within() to the intended item or subtotal container, or use getAllByText and assert the expected count and values. For multiple status elements, select the intended message by its unique text and assert its role, or scope within a container that contains only that status. Scoping to a dialog alone is insufficient if both statuses are inside the dialog. Do not invent accessible names absent from source. In this baseline, <p role='status'> text does NOT give the element an accessible name: getByRole('status', {name: message}) fails for both shipping and checkout. Use within(getByRole('region', {name: 'Free shipping progress'})).getByRole('status') for shipping, or getByText(message) plus toHaveAttribute('role', 'status') for checkout. Existing regression tests provide examples of safe queries; preserve their behavior. Never replace an ambiguous query with an arbitrary [0] or weaken its assertion.";
+  "Every custom React Testing Library matcher must return boolean on every path. Optional chaining can return undefined: use (content, node) => !!(node?.textContent?.includes(content)), or explicitly return false for a missing node. For block callbacks, return false on fallthrough too. Do not use casts, non-null assertions or diagnostic suppression to hide invalid matcher return types. Check query uniqueness against the DOM at EACH asserted state, including after quantity updates and checkout. One render can still contain duplicate text or roles. For repeated prices, scope with within() to the intended item or subtotal container, or use getAllByText and assert the expected count and values. For multiple status elements, select the intended message by its unique text and assert its role, or scope within a container that contains only that status. Scoping to a dialog alone is insufficient if both statuses are inside the dialog. Do not invent accessible names absent from source. In this baseline, <p role='status'> text does NOT give the element an accessible name: getByRole('status', {name: message}) fails for both shipping and checkout. Use within(getByRole('region', {name: 'Free shipping progress'})).getByRole('status') for shipping, or getByText(message) plus toHaveAttribute('role', 'status') for checkout. Existing regression tests provide examples of safe queries; preserve their behavior. Never replace an ambiguous query with an arbitrary [0] or weaken its assertion.";
 const coverageGuidance =
   "For styling criteria listing multiple surfaces, enumerate every named surface from source and assert token usage for each relevant selector; checking only one cart button does not cover close buttons, quantity buttons, size controls, inputs, cards or dialogs. For category text such as Graphic Tees appearing in both filters and product tags, use getByRole('button', {name: 'Graphic Tees'}) for the filter. For a tag, scope within a specific product card, or assert all matching tags using their actual selector and expected values. Never use screen.getByText('Graphic Tees') when rendering the full catalog.";
 const cartGuidance =
@@ -77,7 +78,9 @@ export async function prepareAcceptance(
     );
     previousTests = tests;
     try {
-      tests.code = await format(tests.code, { parser: "typescript" });
+      tests.code = await format(normalizeAcceptanceMatchers(tests.code), {
+        parser: "typescript",
+      });
       validateAcceptance(tests, criteria);
     } catch (error) {
       findings = [error instanceof Error ? error.message : String(error)];

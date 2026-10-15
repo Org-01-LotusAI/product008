@@ -769,6 +769,42 @@ describe("acceptance and review gates", () => {
     ).toBe("approved");
   });
 
+  it("normalizes nullable RTL matchers before preflight and independent review", async () => {
+    aiMode();
+    const id = fixture();
+    write(id, "cost-approval.json", { approvedCost: true });
+    create.mockResolvedValueOnce(
+      reply({
+        code: `it('AC-1 copy',()=>{expect(screen.getByText((content: string, node: Element | null) => node?.textContent?.includes(content))).toBeInTheDocument();});`,
+      }),
+    );
+    create.mockResolvedValueOnce(approvedAcceptance(criteria));
+    const tests = await prepareAcceptance(
+      id,
+      {
+        issue: read<Issue>(id, "intake.json"),
+        actionable: true,
+        reason: "Shipping copy",
+        severity: "P2",
+        subsystems: ["shipping"],
+        reproducible: true,
+      },
+      criteria,
+      {},
+      repository.repositoryContext(),
+    );
+    expect(tests.code).toContain("!!node?.textContent?.includes(content)");
+    expect(vi.mocked(acceptancePreflight).mock.calls[0][2].code).toBe(
+      tests.code,
+    );
+    expect(
+      JSON.parse(create.mock.calls[1][0].input).candidateAcceptanceTests.code,
+    ).toBe(tests.code);
+    expect(
+      create.mock.calls.map(([request]) => request.text.format.name),
+    ).toEqual(["acceptance_tests", "acceptance_review"]);
+  });
+
   it("repairs executable type errors before freezing acceptance", async () => {
     aiMode();
     const id = fixture();
