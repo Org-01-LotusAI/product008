@@ -4,6 +4,7 @@ import { products } from "../data/products";
 import { addItem, cartKey, changeQuantity, subtotal } from "../cart";
 import { ProductCard } from "../components/ProductCard";
 import App from "../App";
+import { FREE_SHIPPING_THRESHOLD } from "../components/ShippingProgress";
 
 describe("ThreadCraft", () => {
   it("merges matching variants and calculates subtotal", () => {
@@ -154,7 +155,7 @@ describe("ThreadCraft", () => {
 it("recomputes shipping when the cart crosses the threshold and is emptied", () => {
   render(<App />);
   const card = screen
-    .getByRole("heading", { name: "Out of Office" })
+    .getByRole("heading", { name: "The Weekend Hoodie" })
     .closest("article")!;
   fireEvent.click(within(card).getByRole("button", { name: "Add to bag" }));
   const dialog = screen.getByRole("dialog", { name: "Shopping bag" });
@@ -163,17 +164,24 @@ it("recomputes shipping when the cart crosses the threshold and is emptied", () 
   );
   const total = within(dialog.querySelector<HTMLElement>(".subtotal")!);
   const increase = within(dialog).getByRole("button", {
-    name: "Increase Out of Office",
+    name: "Increase The Weekend Hoodie",
   });
 
-  for (let i = 0; i < 5; i++) fireEvent.click(increase);
-  expect(total.getByText("$192.00")).toBeInTheDocument();
-  expect(shipping.getByRole("status")).toHaveTextContent(
-    "You're $2.00 away from free shipping.",
-  );
+  const product = products.find((item) => item.name === "The Weekend Hoodie")!;
+  const qualifyingQuantity = Math.ceil(FREE_SHIPPING_THRESHOLD / product.price);
+  expect(qualifyingQuantity).toBeGreaterThan(1);
+  expect(qualifyingQuantity).toBeLessThanOrEqual(product.stockCount);
+  const belowSubtotal = (qualifyingQuantity - 1) * product.price;
+  const remainingMessage = `You're $${(FREE_SHIPPING_THRESHOLD - belowSubtotal).toFixed(2)} away from free shipping.`;
+
+  for (let i = 1; i < qualifyingQuantity - 1; i++) fireEvent.click(increase);
+  expect(total.getByText(`$${belowSubtotal.toFixed(2)}`)).toBeInTheDocument();
+  expect(shipping.getByRole("status")).toHaveTextContent(remainingMessage);
 
   fireEvent.click(increase);
-  expect(total.getByText("$224.00")).toBeInTheDocument();
+  expect(
+    total.getByText(`$${(qualifyingQuantity * product.price).toFixed(2)}`),
+  ).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
     "You unlocked free shipping!",
   );
@@ -182,22 +190,20 @@ it("recomputes shipping when the cart crosses the threshold and is emptied", () 
   expect(within(dialog).getAllByRole("status")).toHaveLength(2);
 
   fireEvent.click(
-    within(dialog).getByRole("button", { name: "Decrease Out of Office" }),
+    within(dialog).getByRole("button", { name: "Decrease The Weekend Hoodie" }),
   );
-  expect(total.getByText("$192.00")).toBeInTheDocument();
-  expect(shipping.getByRole("status")).toHaveTextContent(
-    "You're $2.00 away from free shipping.",
-  );
+  expect(total.getByText(`$${belowSubtotal.toFixed(2)}`)).toBeInTheDocument();
+  expect(shipping.getByRole("status")).toHaveTextContent(remainingMessage);
 
   const decrease = within(dialog).getByRole("button", {
-    name: "Decrease Out of Office",
+    name: "Decrease The Weekend Hoodie",
   });
-  for (let i = 0; i < 6; i++) fireEvent.click(decrease);
+  for (let i = 0; i < qualifyingQuantity - 1; i++) fireEvent.click(decrease);
 
   expect(dialog.querySelectorAll(".cart-item")).toHaveLength(0);
   expect(total.getByText("$0.00")).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
-    "You're $194.00 away from free shipping.",
+    `You're $${FREE_SHIPPING_THRESHOLD.toFixed(2)} away from free shipping.`,
   );
   expect(shipping.getByRole("progressbar")).toHaveAttribute("value", "0");
   expect(
