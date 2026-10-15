@@ -276,6 +276,89 @@ describe("repository-aware scope", () => {
       ),
     ).toBe(true);
   });
+  it("repairs a plan missing regression coverage before generating acceptance", async () => {
+    aiMode();
+    const id = fixture();
+    write(id, "cost-approval.json", { approvedCost: true });
+    write(id, "diagnosis.json", {
+      mode: "openai",
+      issue: read<Issue>(id, "intake.json"),
+      actionable: true,
+      reason: "Subtotal",
+      acceptanceCriteria: criteria.map((c) => c.description),
+    });
+    const incomplete = {
+      summary: "Fix subtotal",
+      files: [{ path: "src/cart.ts", reason: "Fix calculation" }],
+      risks: [],
+      verificationNotes: [],
+    };
+    const repaired = {
+      ...incomplete,
+      files: [
+        ...incomplete.files,
+        {
+          path: "src/__tests__/cart-rounding.test.ts",
+          reason: "Regression coverage",
+        },
+      ],
+    };
+    create.mockResolvedValueOnce(reply(incomplete));
+    create.mockResolvedValueOnce(reply(repaired));
+    create.mockResolvedValueOnce(
+      reply({
+        code: "it('AC-1 subtotal',()=>{expect(subtotal([])).toBe(0);});",
+      }),
+    );
+    create.mockResolvedValueOnce(approvedAcceptance(criteria));
+    const draft = await fitter(id, undefined, true);
+    expect(draft.paths).toEqual(repaired.files.map((file) => file.path));
+    const repairInput = JSON.parse(create.mock.calls[1][0].input);
+    expect(repairInput.previousPlan).toEqual(incomplete);
+    expect(repairInput.validationFindings).toEqual([
+      "Plan requires regression tests",
+    ]);
+    expect(read<{ status: string }>(id, "plan-generation-0.json").status).toBe(
+      "invalid",
+    );
+    expect(read<{ status: string }>(id, "plan-generation-1.json").status).toBe(
+      "approved",
+    );
+    expect(
+      create.mock.calls.map(([request]) => request.text.format.name),
+    ).toEqual(["fitter", "fitter", "acceptance_tests", "acceptance_review"]);
+  });
+
+  it("stops after three invalid plans without generating acceptance or freezing a draft", async () => {
+    aiMode();
+    const id = fixture();
+    write(id, "cost-approval.json", { approvedCost: true });
+    write(id, "diagnosis.json", {
+      mode: "openai",
+      issue: read<Issue>(id, "intake.json"),
+      actionable: true,
+      reason: "Subtotal",
+      acceptanceCriteria: criteria.map((c) => c.description),
+    });
+    create.mockResolvedValue(
+      reply({
+        summary: "Fix subtotal",
+        files: [{ path: "src/cart.ts", reason: "Fix calculation" }],
+        risks: [],
+        verificationNotes: [],
+      }),
+    );
+    await expect(fitter(id, undefined, true)).rejects.toThrow(
+      "Plan generation failed validation after 3 attempts: Plan requires regression tests",
+    );
+    expect(create).toHaveBeenCalledTimes(3);
+    expect(read<{ status: string }>(id, "plan-generation-2.json").status).toBe(
+      "invalid",
+    );
+    expect(fs.existsSync(path.join(workDir(id), "draft.json"))).toBe(false);
+    expect(acceptancePreflight).not.toHaveBeenCalled();
+  });
+
   it("implements a general fitted plan and passes a separate evidence-based reviewer", async () => {
     aiMode();
     const id = fixture();

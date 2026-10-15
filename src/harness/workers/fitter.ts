@@ -33,6 +33,19 @@ interface Plan {
   risks: string[];
   verificationNotes: string[];
 }
+function validatePlan(plan: Plan, explicitPaths: string[] | undefined) {
+  const paths = plan.files.map((f) => f.path);
+  validatePaths(paths);
+  if (
+    explicitPaths &&
+    (paths.length !== explicitPaths.length ||
+      paths.some((p) => !explicitPaths.includes(p)))
+  )
+    throw new Error("Plan differs from explicit path scope");
+  if (plan.files.some((f) => !f.reason.trim()) || !plan.summary.trim())
+    throw new Error("Plan requires implementation rationale");
+}
+
 export async function fitter(
   id: string,
   explicitPaths: string[] | undefined,
@@ -54,21 +67,66 @@ export async function fitter(
   let plan: Plan;
   if (mode === "openai") {
     if (!approvedCost) throw new Error("API execution requires cost approval");
-    plan = await ask<Plan>(
-      id,
-      "fitter",
-      "Create a senior-engineer implementation plan for every acceptance criterion. Select all necessary application, integration, style, data, regression test and documentation paths. Use the smallest complete scope, never a target file count. Preserve existing architecture and test assertions. Every path must be supported by a specific reason. Only application src (excluding harness and pipeline tests), docs Markdown and README.md are editable; no dependencies, CI or infrastructure. At least one implementation and one regression test path. Max 24 paths. Do not claim browser, security or performance verification was run; record manual verification still needed.",
-      { diagnosis, repository: context, allowedPaths: explicitPaths },
-      objectSchema({
-        summary: stringSchema,
-        files: {
-          type: "array",
-          items: objectSchema({ path: stringSchema, reason: stringSchema }),
+    let previousPlan: Plan | undefined;
+    let validationFindings: string[] = [];
+    let attempt = 0;
+    while (true) {
+      plan = await ask<Plan>(
+        id,
+        "fitter",
+        "Create a senior-engineer implementation plan for every acceptance criterion. Select all necessary application, integration, style, data, regression test and documentation paths. Use the smallest complete scope, never a target file count. Preserve existing architecture and test assertions. Every path must be supported by a specific reason. Only application src (excluding harness and pipeline tests), docs Markdown and README.md are editable; no dependencies, CI or infrastructure. At least one application implementation path and one regression test path matching src/__tests__/*.test.ts or *.test.tsx are mandatory, even for a constant-only change. For shipping threshold changes, include src/__tests__/shipping.test.tsx to update threshold assertions. The separately generated issue-acceptance.test.tsx is not a replacement for regression coverage. When validationFindings are supplied, repair previousPlan to fix every finding while preserving complete scope and any explicit allowedPaths. Max 24 paths. Do not claim browser, security or performance verification was run; record manual verification still needed.",
+        {
+          diagnosis,
+          repository: context,
+          allowedPaths: explicitPaths,
+          previousPlan,
+          validationFindings,
         },
-        risks: stringsSchema,
-        verificationNotes: stringsSchema,
-      }),
-    );
+        objectSchema({
+          summary: stringSchema,
+          files: {
+            type: "array",
+            items: objectSchema({ path: stringSchema, reason: stringSchema }),
+          },
+          risks: stringsSchema,
+          verificationNotes: stringsSchema,
+        }),
+      );
+      try {
+        validatePlan(plan, explicitPaths);
+      } catch (error) {
+        validationFindings = [
+          error instanceof Error ? error.message : String(error),
+        ];
+        write(id, `plan-generation-${attempt}.json`, {
+          plan,
+          findings: validationFindings,
+          status: "invalid",
+        });
+        // Scope violations remain terminal; only incomplete plans are repaired.
+        if (
+          ![
+            "Plan requires 1..24 unique paths",
+            "Plan requires application implementation",
+            "Plan requires regression tests",
+            "Plan requires implementation rationale",
+          ].includes(validationFindings[0])
+        )
+          throw error;
+        if (++attempt === 3)
+          throw new Error(
+            `Plan generation failed validation after 3 attempts: ${validationFindings.join("; ")}. See work/${id}/plan-generation-*.json`,
+          );
+        previousPlan = plan;
+        continue;
+      }
+      write(id, `plan-generation-${attempt}.json`, {
+        plan,
+        findings: [],
+        status: "approved",
+      });
+      break;
+    }
   } else {
     if (!shippingRequest(diagnosis.issue))
       throw new Error("Unsupported offline issue");
@@ -88,16 +146,8 @@ export async function fitter(
       ],
     };
   }
+  validatePlan(plan, explicitPaths);
   const paths = plan.files.map((f) => f.path);
-  validatePaths(paths);
-  if (
-    explicitPaths &&
-    (paths.length !== explicitPaths.length ||
-      paths.some((p) => !explicitPaths.includes(p)))
-  )
-    throw new Error("Plan differs from explicit path scope");
-  if (plan.files.some((f) => !f.reason.trim()) || !plan.summary.trim())
-    throw new Error("Plan requires implementation rationale");
   const criteria = diagnosis.acceptanceCriteria.map((description, i) => ({
     id: `AC-${i + 1}`,
     description,
