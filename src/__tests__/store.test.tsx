@@ -55,6 +55,20 @@ describe("ThreadCraft", () => {
     expect(screen.queryByText("Out of Office")).not.toBeInTheDocument();
   });
 
+  it("renders the canonical free-shipping offer in customer-facing copy", () => {
+    render(<App />);
+    expect(
+      screen.getByText(/Free shipping on orders \$391\+/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Free shipping over $391")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Free shipping on orders \$190\+/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Free shipping over $190"),
+    ).not.toBeInTheDocument();
+  });
+
   it("distinguishes category filters from repeated product tags", () => {
     render(<App />);
     expect(() => screen.getByText("Graphic Tees")).toThrow(
@@ -154,7 +168,7 @@ describe("ThreadCraft", () => {
 it("recomputes shipping when the cart crosses the threshold and is emptied", () => {
   render(<App />);
   const card = screen
-    .getByRole("heading", { name: "Out of Office" })
+    .getByRole("heading", { name: "The Weekend Hoodie" })
     .closest("article")!;
   fireEvent.click(within(card).getByRole("button", { name: "Add to bag" }));
   const dialog = screen.getByRole("dialog", { name: "Shopping bag" });
@@ -163,11 +177,11 @@ it("recomputes shipping when the cart crosses the threshold and is emptied", () 
   );
   const total = within(dialog.querySelector<HTMLElement>(".subtotal")!);
   const increase = within(dialog).getByRole("button", {
-    name: "Increase Out of Office",
+    name: "Increase The Weekend Hoodie",
   });
 
   for (let i = 0; i < 5; i++) fireEvent.click(increase);
-  expect(total.getByText("$192.00")).toBeInTheDocument();
+  expect(total.getByText("$408.00")).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
     "You unlocked free shipping!",
   );
@@ -177,22 +191,22 @@ it("recomputes shipping when the cart crosses the threshold and is emptied", () 
   expect(within(dialog).getAllByRole("status")).toHaveLength(2);
 
   fireEvent.click(
-    within(dialog).getByRole("button", { name: "Decrease Out of Office" }),
+    within(dialog).getByRole("button", { name: "Decrease The Weekend Hoodie" }),
   );
-  expect(total.getByText("$160.00")).toBeInTheDocument();
+  expect(total.getByText("$340.00")).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
-    "You're $30.00 away from free shipping.",
+    "You're $51.00 away from free shipping.",
   );
 
   const decrease = within(dialog).getByRole("button", {
-    name: "Decrease Out of Office",
+    name: "Decrease The Weekend Hoodie",
   });
   for (let i = 0; i < 5; i++) fireEvent.click(decrease);
 
   expect(dialog.querySelectorAll(".cart-item")).toHaveLength(0);
   expect(total.getByText("$0.00")).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
-    "You're $190.00 away from free shipping.",
+    "You're $391.00 away from free shipping.",
   );
   expect(shipping.getByRole("progressbar")).toHaveAttribute("value", "0");
   expect(
