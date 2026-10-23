@@ -6,6 +6,7 @@ import { addItem, changeQuantity } from "./cart";
 import { Navbar } from "./components/Navbar";
 import { ProductCard } from "./components/ProductCard";
 import { CartDrawer } from "./components/CartDrawer";
+import { IssueAssistant } from "./components/IssueAssistant";
 import { FREE_SHIPPING_THRESHOLD } from "./components/ShippingProgress";
 
 export default function App() {
@@ -147,6 +148,7 @@ export default function App() {
         <p>Wear your own story.</p>
         <span>© 2026 ThreadCraft · A Product 008 demo</span>
       </footer>
+      <IssueAssistant />
       {open && (
         <CartDrawer
           items={items}
