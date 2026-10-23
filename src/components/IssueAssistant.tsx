@@ -108,7 +108,10 @@ export function IssueAssistant() {
         {open ? "Close assistant" : "Issue assistant"}
       </button>
       {open && (
-        <section className="assistant-panel" aria-label="Issue assistant">
+        <section
+          className={proposal ? "assistant-panel has-draft" : "assistant-panel"}
+          aria-label="Issue assistant"
+        >
           <header>
             <div>
               <p>GitHub issues</p>
@@ -123,84 +126,93 @@ export function IssueAssistant() {
               ? `Default repository is ${target}. Name another as owner/repo in the chat.`
               : health?.error || "Checking the assistant…"}
           </p>
-          <div className="assistant-log">
-            {messages.length === 0 && (
-              <div className="assistant-empty">
-                <p>Describe a bug or change. Nothing is filed until you approve the draft.</p>
-                {starters.map((starter) => (
-                  <button key={starter} type="button" onClick={() => setDraft(starter)}>
-                    {starter}
-                  </button>
-                ))}
-              </div>
+          <div className="assistant-body">
+            <div className="assistant-log">
+              {messages.length === 0 && (
+                <div className="assistant-empty">
+                  <p>Describe a bug or change. Nothing is filed until you approve the draft.</p>
+                  {starters.map((starter) => (
+                    <button key={starter} type="button" onClick={() => setDraft(starter)}>
+                      {starter}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {messages.map((message, index) => (
+                <p key={index} className={message.role}>
+                  {message.content}
+                </p>
+              ))}
+              {busy === "chat" && <p className="assistant">Drafting a reply…</p>}
+            </div>
+            {proposal && (
+              <form
+                id="assistant-draft"
+                className="assistant-draft"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void approve();
+                }}
+              >
+                <div className="assistant-repo">
+                  <label>
+                    Owner
+                    <input
+                      aria-label="Issue owner"
+                      value={proposal.owner}
+                      onChange={(event) =>
+                        setProposal({ ...proposal, owner: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Repo
+                    <input
+                      aria-label="Issue repository"
+                      value={proposal.repo}
+                      onChange={(event) =>
+                        setProposal({ ...proposal, repo: event.target.value })
+                      }
+                    />
+                  </label>
+                </div>
+                <label>
+                  Title
+                  <input
+                    aria-label="Issue title"
+                    value={proposal.title}
+                    onChange={(event) =>
+                      setProposal({ ...proposal, title: event.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  Body
+                  <textarea
+                    aria-label="Issue body"
+                    value={proposal.body}
+                    onChange={(event) =>
+                      setProposal({ ...proposal, body: event.target.value })
+                    }
+                  />
+                </label>
+              </form>
             )}
-            {messages.map((message, index) => (
-              <p key={index} className={message.role}>
-                {message.content}
-              </p>
-            ))}
-            {busy === "chat" && <p className="assistant">Drafting a reply…</p>}
           </div>
           {proposal && (
-            <form
-              className="assistant-draft"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void approve();
-              }}
-            >
-              <div className="assistant-repo">
-                <label>
-                  Owner
-                  <input
-                    aria-label="Issue owner"
-                    value={proposal.owner}
-                    onChange={(event) =>
-                      setProposal({ ...proposal, owner: event.target.value })
-                    }
-                  />
-                </label>
-                <label>
-                  Repo
-                  <input
-                    aria-label="Issue repository"
-                    value={proposal.repo}
-                    onChange={(event) =>
-                      setProposal({ ...proposal, repo: event.target.value })
-                    }
-                  />
-                </label>
-              </div>
-              <label>
-                Title
-                <input
-                  aria-label="Issue title"
-                  value={proposal.title}
-                  onChange={(event) =>
-                    setProposal({ ...proposal, title: event.target.value })
-                  }
-                />
-              </label>
-              <label>
-                Body
-                <textarea
-                  aria-label="Issue body"
-                  value={proposal.body}
-                  onChange={(event) =>
-                    setProposal({ ...proposal, body: event.target.value })
-                  }
-                />
-              </label>
-              <div className="assistant-actions">
-                <button type="button" onClick={() => setProposal(null)}>
-                  Dismiss draft
-                </button>
-                <button type="submit" disabled={busy === "issue" || !proposalReady(proposal)}>
-                  <Check size={16} />
-                  {busy === "issue" ? "Creating…" : "Approve and create issue"}
-                </button>
-              </div>
-            </form>
+            <div className="assistant-actions">
+              <button type="button" onClick={() => setProposal(null)}>
+                Dismiss draft
+              </button>
+              <button
+                type="submit"
+                form="assistant-draft"
+                disabled={busy === "issue" || !proposalReady(proposal)}
+              >
+                <Check size={16} />
+                {busy === "issue" ? "Creating…" : "Approve and create issue"}
+              </button>
+            </div>
           )}
           {created && (
             <p className="assistant-created">

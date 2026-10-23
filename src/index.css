@@ -676,11 +676,13 @@ h1 em {
   bottom: 78px;
   z-index: 30;
   width: min(420px, calc(100vw - 32px));
-  max-height: min(720px, calc(100vh - 110px));
+  max-width: calc(100vw - 32px);
+  max-height: min(720px, calc(100dvh - 110px));
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 16px;
+  overflow: hidden;
   background: #faf9f6;
   color: #20352d;
   border: 1px solid #dedfd7;
@@ -689,6 +691,7 @@ h1 em {
 }
 .assistant-panel header {
   display: flex;
+  flex-shrink: 0;
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
@@ -707,9 +710,11 @@ h1 em {
 .assistant-target,
 .assistant-error,
 .assistant-created {
+  flex-shrink: 0;
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .assistant-target {
   color: #526458;
@@ -721,6 +726,15 @@ h1 em {
   color: #c57548;
   text-decoration: underline;
 }
+.assistant-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
 .assistant-log {
   overflow: auto;
   display: flex;
@@ -730,12 +744,19 @@ h1 em {
   max-height: 240px;
   padding-right: 4px;
 }
+.assistant-panel.has-draft .assistant-log {
+  flex: 1 1 auto;
+  min-height: 72px;
+  max-height: 160px;
+}
 .assistant-log p {
   margin: 0;
+  min-width: 0;
   padding: 10px 12px;
   border-radius: 12px;
   font-size: 13px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 .assistant-log .user {
@@ -771,10 +792,10 @@ h1 em {
 }
 .assistant-draft {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 8px;
-}
-.assistant-draft {
+  min-width: 0;
   border-top: 1px solid #dedfd7;
   padding-top: 10px;
 }
@@ -788,13 +809,15 @@ h1 em {
 }
 .assistant-repo {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
 }
 .assistant-draft input,
 .assistant-draft textarea,
 .assistant-composer textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid #dedfd7;
   background: white;
   border-radius: 10px;
@@ -804,9 +827,13 @@ h1 em {
 }
 .assistant-draft textarea {
   min-height: 88px;
+  max-height: 160px;
+  overflow: auto;
 }
 .assistant-actions {
   display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px;
 }
@@ -820,9 +847,11 @@ h1 em {
 }
 .assistant-composer {
   display: grid;
-  grid-template-columns: 1fr auto;
+  flex-shrink: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: 8px;
+  min-width: 0;
 }
 @media (max-width: 560px) {
   .assistant-panel {
@@ -830,5 +859,9 @@ h1 em {
     right: 12px;
     width: auto;
     bottom: 72px;
+    max-height: calc(100dvh - 96px);
+  }
+  .assistant-actions button {
+    flex: 1 1 auto;
   }
 }
