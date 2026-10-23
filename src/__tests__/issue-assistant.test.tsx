@@ -54,11 +54,15 @@ describe("Issue assistant", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByDisplayValue("Cart drops a line")).toBeInTheDocument();
-    expect(fetchMock.mock.calls.map(([url]) => String(url))).not.toContain("/api/issues");
+    expect(
+      fetchMock.mock.calls.map(([url]) => String(url)).some((url) => url.endsWith("/api/issues")),
+    ).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Approve and create issue" }));
     const link = await screen.findByRole("link", { name: "acme/widgets#12" });
     expect(link).toHaveAttribute("href", "https://github.com/acme/widgets/issues/12");
-    expect(fetchMock.mock.calls.filter(([url]) => String(url) === "/api/issues")).toHaveLength(1);
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/api/issues")),
+    ).toHaveLength(1);
   });
 });
 

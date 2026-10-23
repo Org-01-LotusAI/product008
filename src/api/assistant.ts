@@ -29,6 +29,8 @@ export type AssistantHealth = {
   error?: string | null;
 };
 
+const PRODUCTION_API = "https://product008-ai-backend.vercel.app";
+
 export function assistantHealth() {
   return request<AssistantHealth>("/api/health");
 }
@@ -47,8 +49,14 @@ export function createIssue(draft: IssueDraft) {
   });
 }
 
+function apiUrl(path: string) {
+  const configured = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "") ?? "";
+  const base = configured || (import.meta.env.PROD ? PRODUCTION_API : "");
+  return `${base}${path}`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
