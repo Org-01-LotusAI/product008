@@ -166,8 +166,8 @@ it("recomputes shipping when the cart crosses the threshold and is emptied", () 
     name: "Increase Out of Office",
   });
 
-  for (let i = 0; i < 5; i++) fireEvent.click(increase);
-  expect(total.getByText("$192.00")).toBeInTheDocument();
+  for (let i = 0; i < 6; i++) fireEvent.click(increase);
+  expect(total.getByText("$224.00")).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
     "You unlocked free shipping!",
   );
@@ -179,20 +179,20 @@ it("recomputes shipping when the cart crosses the threshold and is emptied", () 
   fireEvent.click(
     within(dialog).getByRole("button", { name: "Decrease Out of Office" }),
   );
-  expect(total.getByText("$160.00")).toBeInTheDocument();
+  expect(total.getByText("$192.00")).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
-    "You're $30.00 away from free shipping.",
+    "You're $8.00 away from free shipping.",
   );
 
   const decrease = within(dialog).getByRole("button", {
     name: "Decrease Out of Office",
   });
-  for (let i = 0; i < 5; i++) fireEvent.click(decrease);
+  for (let i = 0; i < 6; i++) fireEvent.click(decrease);
 
   expect(dialog.querySelectorAll(".cart-item")).toHaveLength(0);
   expect(total.getByText("$0.00")).toBeInTheDocument();
   expect(shipping.getByRole("status")).toHaveTextContent(
-    "You're $190.00 away from free shipping.",
+    "You're $200.00 away from free shipping.",
   );
   expect(shipping.getByRole("progressbar")).toHaveAttribute("value", "0");
   expect(
